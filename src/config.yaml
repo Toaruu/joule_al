@@ -1,0 +1,14 @@
+target_column: charge_capacity_mAh_g
+suggestions_per_batch: 5
+candidate_pool_size: 5000   # random candidates to evaluate acquisition on
+
+parameters:
+  - {name: P1, low: 0.5, high: 1.5, type: float}
+  - {name: N1, low: 20,  high: 80,  type: int}
+  - {name: t1, low: 0.5, high: 2.0, type: float}
+  - {name: P2, low: 1.5, high: 3.5, type: float}
+  - {name: N2, low: 10,  high: 50,  type: int}
+  - {name: t2, low: 1.0, high: 4.0, type: float}
+  - {name: P3, low: 3.0, high: 5.0, type: float}
+  - {name: N3, low: 2,   high: 15,  type: int}
+  - {name: t3, low: 2.0, high: 8.0, type: float}
