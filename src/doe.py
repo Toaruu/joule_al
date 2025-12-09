@@ -13,13 +13,10 @@ def latin_hypercube(n_samples: int, n_dim: int, random_state: int | None = None)
     Returns an (n_samples, n_dim) array.
     """
     rng = np.random.default_rng(random_state)
-    # Start with grid of intervals
     cut = np.linspace(0, 1, n_samples + 1)
 
-    # For each dimension: sample one point per interval and permute
     H = np.zeros((n_samples, n_dim), dtype=float)
     for j in range(n_dim):
-        # random point in each interval
         u = rng.uniform(low=cut[:-1], high=cut[1:])
         rng.shuffle(u)
         H[:, j] = u
@@ -61,10 +58,12 @@ def generate_initial_doe(
     params_cfg = cfg["parameters"]
     param_names = [p["name"] for p in params_cfg]
 
-    # If not specified, choose something like 3–4x number of dimensions
+    # If not specified, use config value or fallback to 3x number of dims
     if n_samples is None:
-        n_dim = len(params_cfg)
-        n_samples = 3 * n_dim  # e.g., 27 samples for 9-D
+        n_samples = cfg.get("initial_doe_samples")
+        if n_samples is None:
+            n_dim = len(params_cfg)
+            n_samples = 3 * n_dim
 
     lhs = latin_hypercube(n_samples, len(params_cfg), random_state=random_state)
     X = scale_lhs_to_params(lhs, params_cfg)
@@ -78,5 +77,4 @@ def generate_initial_doe(
 
 
 if __name__ == "__main__":
-    # default behaviour when run as a script
     generate_initial_doe()
