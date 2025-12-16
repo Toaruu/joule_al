@@ -33,3 +33,17 @@ def predict_xgb_ensemble(models, X):
     mu = preds.mean(axis=0)
     sigma = preds.std(axis=0)
     return mu, sigma
+
+def xgb_ensemble_feature_importance(models, feature_names):
+    """
+    Average feature_importances_ across an XGBoost ensemble
+    and normalise so they sum to 1.
+    """
+    import numpy as np
+
+    importances = np.stack([m.feature_importances_ for m in models], axis=0)
+    mean_imp = importances.mean(axis=0)
+    if mean_imp.sum() > 0:
+        mean_imp = mean_imp / mean_imp.sum()
+    return dict(zip(feature_names, mean_imp))
+

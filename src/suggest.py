@@ -6,8 +6,8 @@ from pathlib import Path
 
 from .config import load_config
 from .data_io import load_experiments
-from .model_gp import fit_gp
-from .model_xgb import fit_xgb_ensemble, predict_xgb_ensemble
+from .model_gp import fit_gp, gp_feature_importance
+from .model_xgb import fit_xgb_ensemble, predict_xgb_ensemble, xgb_ensemble_feature_importance
 from .acquisition import expected_improvement
 
 
@@ -39,6 +39,30 @@ def sample_candidates(cfg):
 
     return X
 
+def print_feature_importance(importance_dict, title="Approximate feature importance"):
+    """Print a simple text bar chart like the screenshot."""
+    print(f"\n{title}")
+    print("-" * len(title))
+
+    # Sort by importance (descending)
+    items = sorted(importance_dict.items(), key=lambda kv: kv[1], reverse=True)
+    if not items:
+        print("(no features)")
+        return
+
+    max_name_len = max(len(name) for name, _ in items)
+    max_val = max(val for _, val in items)
+    bar_width = 10
+
+    for name, val in items:
+        if max_val > 0:
+            n_blocks = int(round(val / max_val * bar_width))
+        else:
+            n_blocks = 0
+        bar = "█" * n_blocks
+        print(f"{name:<{max_name_len}}  {bar}  ({val:.3f})")
+
+
 
 def is_safe(row: pd.Series) -> bool:
     # Example safety rule: P3 >= P2 >= P1
@@ -61,7 +85,8 @@ def suggest_new_experiments(
 
     # 1. Load historical data
     df, X, y = load_experiments(data_path, param_names, target_col)
-    best_y = np.max(y)
+    maximize = cfg.get("maximize", True)  # allow config switch
+    best_y = np.max(y) if maximize else np.min(y)
 
     # 2. Fit surrogate model
     if model_type == "gp":
@@ -70,6 +95,15 @@ def suggest_new_experiments(
         surrogate = fit_xgb_ensemble(X, y)
     else:
         raise ValueError(f"Unknown model type: {model_type}")
+    
+    feat_importance = {}
+    if model_type == "gp":
+        feat_importance = gp_feature_importance(surrogate, param_names)
+    elif model_type == "xgb_ensemble":
+        feat_importance = xgb_ensemble_feature_importance(surrogate, param_names)
+
+    if feat_importance:
+        print_feature_importance(feat_importance, title="Feature importance (normalized)")
 
     # 3. Sample candidate pool
     X_cand = sample_candidates(cfg)
@@ -92,7 +126,8 @@ def suggest_new_experiments(
         raise ValueError(f"Unknown model type: {model_type}")
 
     # 6. Compute EI
-    ei = expected_improvement(mu, sigma, best_y)
+    xi = cfg.get("ei_xi", 0.01)
+    ei = expected_improvement(mu, sigma, best_y, xi=xi, maximize=maximize)
 
     # 7. Select top-k batch
     k = cfg["suggestions_per_batch"]
@@ -117,7 +152,7 @@ def suggest_new_experiments(
     suggestions_df.to_csv(output_path, index=False)
 
     # ---- Console summary ----
-    print(f"[{model_type}] Current best *observed* capacity: {best_y:.2f} mAh/g\n")
+    print(f"[{model_type}] Current best *observed* capacity: {best_y:.2f} mAh/g (maximize={maximize})\n")
 
     print("New suggested experiments (sorted by EI):")
     for row in suggestions_df.itertuples(index=False):

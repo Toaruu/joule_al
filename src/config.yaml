@@ -1,7 +1,9 @@
 model:
-  type: gp           # options: "gp", "xgb_ensemble"
+  type: xgb_ensemble        # options: "gp", "xgb_ensemble"
 
 target_column: charge_capacity_mAh_g
+maximize: true
+ei_xi: 0.01
 
 # Number of experiment suggestions per batch (align with lab workflow, e.g. 3–10)
 suggestions_per_batch: 5
